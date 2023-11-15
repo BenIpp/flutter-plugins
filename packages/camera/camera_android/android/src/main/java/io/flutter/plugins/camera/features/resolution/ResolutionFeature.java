@@ -161,7 +161,7 @@ public class ResolutionFeature extends CameraFeature<ResolutionPreset> {
    * @return The best possible {@link android.media.CamcorderProfile} that matches the supplied
    *     {@link ResolutionPreset}.
    */
-  /* @TargetApi(Build.VERSION_CODES.R)
+  @TargetApi(Build.VERSION_CODES.R)
   public static CamcorderProfile getBestAvailableCamcorderProfileForResolutionPresetLegacy(
       int cameraId, ResolutionPreset preset) {
     if (cameraId < 0) {
@@ -205,7 +205,7 @@ public class ResolutionFeature extends CameraFeature<ResolutionPreset> {
     }
   }
 
-  @TargetApi(Build.VERSION_CODES.S) */
+  @TargetApi(Build.VERSION_CODES.S)
   public static EncoderProfiles getBestAvailableCamcorderProfileForResolutionPreset(
       int cameraId, ResolutionPreset preset) {
     if (cameraId < 0) {
