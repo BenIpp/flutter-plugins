@@ -4,8 +4,10 @@
 
 package io.flutter.plugins.camera.features.resolution;
 
+import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.CamcorderProfile;
 import android.media.EncoderProfiles;
 import android.os.Build;
@@ -14,6 +16,13 @@ import androidx.annotation.VisibleForTesting;
 import io.flutter.plugins.camera.CameraProperties;
 import io.flutter.plugins.camera.features.CameraFeature;
 import java.util.List;
+import io.flutter.plugins.camera.SdkCapabilityChecker;
+import java.util.Comparator;
+import java.util.Arrays;
+import java.util.Collections;
+import android.graphics.ImageFormat;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 /**
  * Controls the resolutions configuration on the {@link android.hardware.camera2} API.
@@ -114,14 +123,18 @@ public class ResolutionFeature extends CameraFeature<ResolutionPreset> {
     if (preset.ordinal() > ResolutionPreset.high.ordinal()) {
       preset = ResolutionPreset.high;
     }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    if (SdkCapabilityChecker.supportsEncoderProfiles()) {
       EncoderProfiles profile =
           getBestAvailableCamcorderProfileForResolutionPreset(cameraId, preset);
       List<EncoderProfiles.VideoProfile> videoProfiles = profile.getVideoProfiles();
       EncoderProfiles.VideoProfile defaultVideoProfile = videoProfiles.get(0);
 
-      if (defaultVideoProfile != null) {
-        return new Size(defaultVideoProfile.getWidth(), defaultVideoProfile.getHeight());
+      if(defaultVideoProfile != null) {
+        if (defaultVideoProfile.getHeight() / defaultVideoProfile.getWidth() != 0.75) {
+          return new Size(defaultVideoProfile.getWidth(), defaultVideoProfile.getWidth() * 3 / 4);
+        } else {
+          return new Size(defaultVideoProfile.getWidth(), defaultVideoProfile.getHeight());
+        }
       }
     }
 
@@ -130,7 +143,11 @@ public class ResolutionFeature extends CameraFeature<ResolutionPreset> {
     // This should be removed when reverting that fallback behavior: https://github.com/flutter/flutter/issues/119668.
     CamcorderProfile profile =
         getBestAvailableCamcorderProfileForResolutionPresetLegacy(cameraId, preset);
-    return new Size(profile.videoFrameWidth, profile.videoFrameHeight);
+    if (profile.videoFrameHeight / profile.videoFrameWidth != 0.75) {
+      return new Size(profile.videoFrameWidth, profile.videoFrameWidth * 3 / 4);
+    } else {
+      return new Size(profile.videoFrameWidth, profile.videoFrameHeight);
+    }
   }
 
   /**
@@ -144,6 +161,7 @@ public class ResolutionFeature extends CameraFeature<ResolutionPreset> {
    * @return The best possible {@link android.media.CamcorderProfile} that matches the supplied
    *     {@link ResolutionPreset}.
    */
+  @TargetApi(Build.VERSION_CODES.R)
   public static CamcorderProfile getBestAvailableCamcorderProfileForResolutionPresetLegacy(
       int cameraId, ResolutionPreset preset) {
     if (cameraId < 0) {
@@ -233,6 +251,26 @@ public class ResolutionFeature extends CameraFeature<ResolutionPreset> {
     }
   }
 
+  static Size computeBestCaptureSize(StreamConfigurationMap streamConfigurationMap) {
+    // For still image captures, we use the largest available size.
+    Size newCaptureSize = Collections.max(Arrays.asList(streamConfigurationMap.getOutputSizes(ImageFormat.JPEG)),
+            new CompareSizesByArea());
+
+    if (newCaptureSize.getHeight() / newCaptureSize.getWidth() != 0.75) {
+      return new Size(newCaptureSize.getWidth(), newCaptureSize.getWidth() * 3 / 4);
+    } else {
+      return new Size(newCaptureSize.getWidth(), newCaptureSize.getHeight());
+    }
+  }
+
+  private static class CompareSizesByArea implements Comparator<Size> {
+    @Override
+    public int compare(Size lhs, Size rhs) {
+      // We cast here to ensure the multiplications won't overflow.
+      return Long.signum((long) lhs.getWidth() * lhs.getHeight() - (long) rhs.getWidth() * rhs.getHeight());
+    }
+  }
+
   private void configureResolution(ResolutionPreset resolutionPreset, int cameraId)
       throws IndexOutOfBoundsException {
     if (!checkIsSupported()) {
@@ -240,7 +278,7 @@ public class ResolutionFeature extends CameraFeature<ResolutionPreset> {
     }
     boolean captureSizeCalculated = false;
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    if (SdkCapabilityChecker.supportsEncoderProfiles()) {
       recordingProfileLegacy = null;
       recordingProfile =
           getBestAvailableCamcorderProfileForResolutionPreset(cameraId, resolutionPreset);
@@ -249,8 +287,7 @@ public class ResolutionFeature extends CameraFeature<ResolutionPreset> {
       EncoderProfiles.VideoProfile defaultVideoProfile = videoProfiles.get(0);
 
       if (defaultVideoProfile != null) {
-        captureSizeCalculated = true;
-        captureSize = new Size(defaultVideoProfile.getWidth(), defaultVideoProfile.getHeight());
+        captureSize = computeBestCaptureSize(cameraProperties.getAvailableScalerStreamConfigurationMap());
       }
     }
 
@@ -260,8 +297,7 @@ public class ResolutionFeature extends CameraFeature<ResolutionPreset> {
       CamcorderProfile camcorderProfile =
           getBestAvailableCamcorderProfileForResolutionPresetLegacy(cameraId, resolutionPreset);
       recordingProfileLegacy = camcorderProfile;
-      captureSize =
-          new Size(recordingProfileLegacy.videoFrameWidth, recordingProfileLegacy.videoFrameHeight);
+      captureSize = computeBestCaptureSize(cameraProperties.getAvailableScalerStreamConfigurationMap());
     }
 
     previewSize = computeBestPreviewSize(cameraId, resolutionPreset);

@@ -1,16 +1,7 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-  package="io.flutter.plugins.cameraexample">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="io.flutter.plugins.cameraexample">
 
-  <application
-    android:icon="@mipmap/ic_launcher"
-    android:label="camera_example">
-    <activity
-      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|layoutDirection"
-      android:hardwareAccelerated="true"
-      android:launchMode="singleTop"
-      android:name="io.flutter.embedding.android.FlutterActivity"
-      android:theme="@style/LaunchTheme"
-      android:windowSoftInputMode="adjustResize">
+  <application android:icon="@mipmap/ic_launcher" android:label="camera_example" android:requestLegacyExternalStorage="true">
+    <activity android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|layoutDirection" android:hardwareAccelerated="true" android:launchMode="singleTop" android:name="io.flutter.embedding.android.FlutterActivity" android:theme="@style/LaunchTheme" android:windowSoftInputMode="adjustResize">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
         <category android:name="android.intent.category.LAUNCHER"/>
@@ -19,10 +10,9 @@
     <meta-data android:name="flutterEmbedding" android:value="2"/>
   </application>
 
-  <uses-feature
-    android:name="android.hardware.camera"
-    android:required="true"/>
+  <uses-feature android:name="android.hardware.camera" android:required="true"/>
 
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.FLASHLIGHT"/>
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 </manifest>
